@@ -1,9 +1,8 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { db } from '../lib/fierbase';
-import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot,getDoc, query, where } from 'firebase/firestore';
 
 export default function HomePage() {
   const router = useRouter();
@@ -21,47 +20,67 @@ export default function HomePage() {
   }, []);
 
   const createNew = async () => {
-    const id = uuidv4();
-    const newChart = {
-      name: `Flowchart ${charts.length + 1}`,
-      nodes: [],
-      edges: []
-    };
+    const name = prompt('Enter flowchart name (URL-friendly):');
+    if (!name) return;
+
     try {
-      await setDoc(doc(db, 'flowcharts', id), newChart);
-      router.push(`/flowcharts/${id}`);
+      // Create document with name as ID
+      await setDoc(doc(db, 'flowcharts', name), {
+        name,
+        nodes: [],
+        edges: [],
+        createdAt: new Date()
+      });
+      router.push(`/flowcharts/${name}`);
     } catch (error) {
       console.error("Error creating chart:", error);
+      alert('Name must be unique and URL-friendly!');
     }
   };
 
-  const renameChart = async (id, newName) => {
+  const renameChart = async (oldName, newName) => {
+    if (!newName) return;
+    
     try {
-      await updateDoc(doc(db, 'flowcharts', id), { name: newName });
+      // Get existing document
+      const docRef = doc(db, 'flowcharts', oldName);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) return;
+
+      // Create new document with updated name
+      await setDoc(doc(db, 'flowcharts', newName), {
+        ...docSnap.data(),
+        name: newName
+      });
+      
+      // Delete old document
+      await deleteDoc(docRef);
     } catch (error) {
       console.error("Error renaming chart:", error);
+      alert('Name must be unique and URL-friendly!');
     }
   };
 
-  const duplicateChart = async (id) => {
+  const duplicateChart = async (originalName) => {
     try {
-      const originalDoc = await getDoc(doc(db, 'flowcharts', id));
-      if (!originalDoc.exists()) return;
+      const docSnap = await getDoc(doc(db, 'flowcharts', originalName));
+      if (!docSnap.exists()) return;
       
-      const originalData = originalDoc.data();
-      const newId = uuidv4();
-      await setDoc(doc(db, 'flowcharts', newId), {
-        ...originalData,
-        name: `${originalData.name} Copy`
+      const newName = `${originalName}-copy`;
+      await setDoc(doc(db, 'flowcharts', newName), {
+        ...docSnap.data(),
+        name: newName,
+        createdAt: new Date()
       });
     } catch (error) {
       console.error("Error duplicating chart:", error);
     }
   };
 
-  const deleteChart = async (id) => {
+  const deleteChart = async (name) => {
     try {
-      await deleteDoc(doc(db, 'flowcharts', id));
+      await deleteDoc(doc(db, 'flowcharts', name));
     } catch (error) {
       console.error("Error deleting chart:", error);
     }
@@ -81,7 +100,7 @@ export default function HomePage() {
           >
             <div
               className="cursor-pointer"
-              onClick={() => router.push(`/flowcharts/${chart.id}`)}
+              onClick={() => router.push(`/flowcharts/${chart.name}`)}
             >
               📊 {chart.name}
             </div>
@@ -89,25 +108,25 @@ export default function HomePage() {
               <button
                 onClick={() => {
                   const newName = prompt('Rename Flowchart:', chart.name);
-                  if (newName) renameChart(chart.id, newName);
+                  if (newName) renameChart(chart.name, newName);
                 }}
                 className="text-yellow-400"
               >
-                Rename the chart
+                Rename
               </button>
               <button
-                onClick={() => duplicateChart(chart.id)}
+                onClick={() => duplicateChart(chart.name)}
                 className="text-green-400"
               >
-                Duplicate this 
+                Duplicate
               </button>
               <button
                 onClick={() => {
-                  if (confirm('Delete this flowchart?')) deleteChart(chart.id);
+                  if (confirm('Delete this flowchart?')) deleteChart(chart.name);
                 }}
                 className="text-red-400"
               >
-                Delete this
+                Delete
               </button>
             </div>
           </div>

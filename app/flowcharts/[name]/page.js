@@ -13,7 +13,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../../../lib/fierbase';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc,updateDoc } from 'firebase/firestore';
 
 const statusColors = {
   todo: '#808080',
@@ -107,34 +107,47 @@ const TaskDialog = ({ node, isOpen, onClose, onSave, onDelete }) => {
 };
 
 export default function FlowchartPage() {
- const { id } = useParams();
+ const { name } = useParams();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
-    const docRef = doc(db, 'flowcharts', id);
+    const docRef = doc(db, 'flowcharts', name);
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
+        // Verify the document has the correct name field
+        if (data.name !== name) {
+          console.warn('Document name mismatch! Fixing...');
+          setDoc(docRef, { name }, { merge: true });
+        }
         setNodes(data.nodes || []);
         setEdges(data.edges || []);
+      } else {
+        // Create new document with name field
+        setDoc(docRef, { name, nodes: [], edges: [] });
       }
     });
     return () => unsubscribe();
-  }, [id]);
+  }, [name]);
 
-  useEffect(() => {
-    const saveData = async () => {
-      try {
-        await updateDoc(doc(db, 'flowcharts', id), { nodes, edges });
-      } catch (error) {
-        console.error('Error saving flowchart:', error);
-      }
-    };
-    saveData();
-  }, [nodes, edges, id]);
+  // Auto-save to Firestore
+  // useEffect(() => {
+  //   const saveData = async () => {
+  //     try {
+  //       await setDoc(doc(db, 'flowcharts', name), { 
+  //         name,
+  //         nodes,
+  //         edges
+  //       }, { merge: true });
+  //     } catch (error) {
+  //       console.error('Error saving flowchart:', error);
+  //     }
+  //   };
+  //   saveData();
+  // }, [nodes, edges, name]);
 
   
 
@@ -161,6 +174,21 @@ export default function FlowchartPage() {
     };
     setNodes((nds) => [...nds, newNode]);
   };
+
+  const saveFlowchart = async () => {
+  try {
+    await setDoc(doc(db, 'flowcharts', name), {
+      name,
+      nodes,
+      edges,
+    }, { merge: true });
+    alert('Flowchart saved successfully!');
+  } catch (error) {
+    console.error('Error saving flowchart:', error);
+    alert('Error saving flowchart. Check console for details.');
+  }
+};
+
 
   const handleNodeDoubleClick = (event, node) => {
     setSelectedNode(node);
@@ -200,24 +228,28 @@ export default function FlowchartPage() {
 
   return (
     <div className="h-screen w-full relative">
-      <div className="absolute top-0 left-0 z-10 p-4 flex gap-4 bg-gray-900 w-full">
-        <button onClick={addNode} className="bg-blue-600 px-4 py-1 rounded">
-          + Add Task
-        </button>
-        <div className="flex-1 bg-gray-700 h-8 rounded overflow-hidden">
-          {Object.entries(statusCount).map(([status, count]) => (
-            <div
-              key={status}
-              className="inline-block h-full"
-              style={{
-                width: `${(count / total) * 100}%`,
-                background: statusColors[status],
-              }}
-              title={`${status}: ${((count / total) * 100).toFixed(0)}%`}
-            />
-          ))}
-        </div>
-      </div>
+     <div className="absolute top-0 left-0 z-10 p-4 flex gap-4 bg-gray-900 w-full">
+  <button onClick={addNode} className="bg-blue-600 px-4 py-1 rounded">
+    + Add Task
+  </button>
+  <button onClick={saveFlowchart} className="bg-green-600 px-4 py-1 rounded text-white">
+    💾 Save Flowchart
+  </button>
+  <div className="flex-1 bg-gray-700 h-8 rounded overflow-hidden">
+    {Object.entries(statusCount).map(([status, count]) => (
+      <div
+        key={status}
+        className="inline-block h-full"
+        style={{
+          width: `${(count / total) * 100}%`,
+          background: statusColors[status],
+        }}
+        title={`${status}: ${((count / total) * 100).toFixed(0)}%`}
+      />
+    ))}
+  </div>
+</div>
+
 
       <ReactFlow
         nodes={nodes}
