@@ -93,13 +93,13 @@ export default function HomePage() {
                 }}
                 className="text-yellow-400"
               >
-                Rename
+                Rename the chart
               </button>
               <button
                 onClick={() => duplicateChart(chart.id)}
                 className="text-green-400"
               >
-                Duplicate
+                Duplicate this 
               </button>
               <button
                 onClick={() => {
@@ -107,7 +107,7 @@ export default function HomePage() {
                 }}
                 className="text-red-400"
               >
-                Delete
+                Delete this
               </button>
             </div>
           </div>
