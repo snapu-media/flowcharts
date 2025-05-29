@@ -272,13 +272,13 @@ useEffect(() => {
 
 
   const onConnect = (params) => {
-    if (userRole === 'employee') return;
+    // if (userRole === 'employee') return;
     params.markerEnd = { type: MarkerType.ArrowClosed };
     setEdges((eds) => addEdge(params, eds));
   };
 
   const addNode = () => {
-    if (userRole === 'employee') return;
+    // if (userRole === 'employee') return;
     const newNode = {
       id: uuidv4(),
       data: { 
@@ -316,7 +316,7 @@ useEffect(() => {
   };
 
   const handleEdgeClick = (event, edge) => {
-    if (userRole === 'employee') return;
+    // if (userRole === 'employee') return;
     setSelectedEdge(edge);
   };
 
